@@ -1,0 +1,191 @@
+/**
+ * 
+ * @author cskim -- hufs.ac.kr 
+ * 2017. 11. 13.
+ * Copy Right -- Free for Educational Purpose
+ *
+ */
+package hufs.ces.db;
+
+import java.awt.BorderLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Vector;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.EtchedBorder;
+import javax.swing.table.DefaultTableModel;
+
+import hufs.ces.dbutils.DBConn;
+
+/**
+ * @author cskim
+ *
+ */
+public class SearchAllAddressFrame extends JFrame {
+
+	private JPanel contentPane;
+	private JPanel panel;
+	private JLabel lblEnterZipcode;
+	private JTextField textField;
+	private JScrollPane scrollPane;
+	private JTable jlistAddress;
+	private JPanel statusPanel;
+	private JButton btnConnect;
+	private JLabel lblConnStatus;
+
+	private Connection conn = null;
+	/**
+	 * Create the frame.
+	 */
+	public SearchAllAddressFrame() {
+		
+		initialize();
+	}
+	
+	void initialize() {
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setBounds(100, 100, 932, 928);
+		contentPane = new JPanel();
+		contentPane.setBorder(new EmptyBorder(0, 0, 0, 0));
+		contentPane.setLayout(new BorderLayout(0, 0));
+		setContentPane(contentPane);
+		
+		panel = new JPanel();
+		panel.setBorder(new EtchedBorder(EtchedBorder.LOWERED, null, null));
+		contentPane.add(panel, BorderLayout.NORTH);
+		panel.setLayout(new GridLayout(1, 2, 0, 0));
+		
+		lblEnterZipcode = new JLabel("Enter Zipcode  ");
+		lblEnterZipcode.setHorizontalAlignment(SwingConstants.TRAILING);
+		lblEnterZipcode.setFont(new Font("����", Font.PLAIN, 22));
+		panel.add(lblEnterZipcode);
+		
+		textField = new JTextField();
+		textField.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				getZipCodeAction();
+			}
+
+		});
+		panel.add(textField);
+		textField.setColumns(10);
+		
+		scrollPane = new JScrollPane();
+		contentPane.add(scrollPane, BorderLayout.CENTER);
+		
+		jlistAddress = new JTable();
+		jlistAddress.setRowSelectionAllowed(false);
+		scrollPane.setViewportView(jlistAddress);
+		
+		statusPanel = new JPanel();
+		contentPane.add(statusPanel, BorderLayout.SOUTH);
+		statusPanel.setLayout(new BorderLayout(0, 0));
+		
+		btnConnect = new JButton("     Connect      ");
+		btnConnect.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				connDBAction();
+			}
+		});
+		statusPanel.add(btnConnect, BorderLayout.WEST);
+		
+		lblConnStatus = new JLabel("");
+		statusPanel.add(lblConnStatus, BorderLayout.CENTER);
+	}
+	/**
+	 * 
+	 */
+	protected void connDBAction() {
+		try {
+			lblConnStatus.setText("");
+			DBConn dbconn = new DBConn();
+			conn = dbconn.getConnection();
+			String connMsg = " Connected to "
+					+ dbconn.getServerIP() + " "
+					+ dbconn.getDBname();
+			lblConnStatus.setText(connMsg);
+			
+		} catch (ClassNotFoundException e) {
+			lblConnStatus.setText("ClassNotFoundException");
+			e.printStackTrace();
+		} catch (SQLException e) {
+			lblConnStatus.setText("SQLException");
+			e.printStackTrace();
+		}
+	}
+
+	private void getZipCodeAction() {
+		DefaultTableModel addrTableModel = new DefaultTableModel();
+		Vector<String> colNames = new Vector<String>();
+		colNames.add("Seq.");
+		colNames.add("=== Address ===");
+		int colMax = 2;
+		
+		Vector<String[]> rowDataList = new Vector<String[]>();
+		
+		addrTableModel.setDataVector(rowDataList, colNames);		
+		jlistAddress.setModel(addrTableModel);
+		jlistAddress.getColumnModel().getColumn(0).setPreferredWidth(10);
+		jlistAddress.getColumnModel().getColumn(1).setPreferredWidth(200);
+		jlistAddress.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+		
+		String inputCode = textField.getText();
+		System.out.println("zipcode="+inputCode);
+		String SQL = "SELECT zipcode, sido, sigungu, eubmyundong, doromyung "
+				+ "FROM zipcode_kor2017 "
+				+ "WHERE zipcode = ? ";
+		
+		PreparedStatement pstmt = null;
+		try {
+			pstmt = conn.prepareStatement(SQL);
+			pstmt.setString(1, inputCode); 
+            ResultSet rs = pstmt.executeQuery();
+            
+            int seqNo = 0;
+            while(rs.next()) {
+            	String zipcode = rs.getString("zipcode");
+            	String sido = rs.getString("sido");
+            	String sigungu = rs.getString("sigungu");
+            	String eubmyundong = rs.getString("eubmyundong");
+            	String doromyung = rs.getString("doromyung");
+            	
+            	String addrLine = String.format("%s	%s	%s	%s	%s", zipcode, sido, sigungu, eubmyundong, doromyung);
+            	System.out.println(addrLine);
+            	            
+            	String[] rowData = new String[colMax];
+            	seqNo++;
+            	rowData[0] = String.valueOf(seqNo);
+            	rowData[1] = addrLine;
+            	addrTableModel.addRow(rowData);
+            }
+            System.out.println("Selected length="+rowDataList.size());
+            
+        } catch (SQLException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (pstmt!=null) pstmt.close();
+				if (conn!=null) conn.close();
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+		}	
+        this.validate();
+	}
+
+}
